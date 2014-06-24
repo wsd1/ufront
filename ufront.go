@@ -1,28 +1,47 @@
 package main
 
+
 import (
     "fmt"
     "net"
     "os"
     "time"
+    "ufPacket"
+
 )
 
+type Header struct {
+	ver, len 	uint16
+	did			[8]uint8
+	ts				[4]uint8
+	sign			[16]uint8
+}
+
 func main() {
+	var conn *net.UDPConn
     service := ":1200"
     udpAddr, err := net.ResolveUDPAddr("udp4", service)
     checkError(err)
-    conn, err := net.ListenUDP("udp", udpAddr)
+    conn, err = net.ListenUDP("udp", udpAddr)
     checkError(err)
     for {
         handleClient(conn)
     }
 }
+
 func handleClient(conn *net.UDPConn) {
-    var buf [512]byte
-    _, addr, err := conn.ReadFromUDP(buf[0:])
+    var buf = make([]byte, 512, 1024)
+    var hdr *ufPacket.Header
+    n, addr, err := conn.ReadFromUDP(buf[0:])
     if err != nil {
         return
     }
+    fmt.Printf("%dbytes:%s\n\n",n, string(buf[:n]))
+
+	hdr, err = ufPacket.HeaderParse(buf)
+
+    fmt.Printf("%v\n", hdr)
+
     daytime := time.Now().String()
     conn.WriteToUDP([]byte(daytime), addr)
 }
