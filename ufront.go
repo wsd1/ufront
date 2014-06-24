@@ -30,20 +30,28 @@ func main() {
 }
 
 func handleClient(conn *net.UDPConn) {
-    var buf = make([]byte, 512, 1024)
-    var hdr *ufPacket.Header
+    var buf = make([]byte, 1460)
+    var phdr *ufPacket.Header
     n, addr, err := conn.ReadFromUDP(buf[0:])
     if err != nil {
         return
     }
     fmt.Printf("%dbytes:%s\n\n",n, string(buf[:n]))
 
-	hdr, err = ufPacket.HeaderParse(buf)
-
-    fmt.Printf("%v\n", hdr)
+	//check parse function
+	phdr, err = ufPacket.HeaderParse(buf)
+    fmt.Printf("%v\n", phdr)
 
     daytime := time.Now().String()
     conn.WriteToUDP([]byte(daytime), addr)
+
+
+	var retbuf []byte
+	
+	//check compose function
+	retbuf, err = ufPacket.HeaderCompose(phdr)
+    fmt.Printf("%v\n", retbuf)
+    
 }
 func checkError(err error) {
     if err != nil {

@@ -7,10 +7,10 @@ import (
 )
 
 type Header struct {
-	Ver, Len 	uint16
-	DID			uint64
-	TS				uint32
-	Sign			[16]uint8
+	Ver, Len uint16
+	DID uint64
+	TS	 uint32
+	Sign [16]uint8
 }
 
 func HeaderParse(pkt []byte)(phdr *Header, err error){
