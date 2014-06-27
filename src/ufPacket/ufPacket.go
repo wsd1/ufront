@@ -1,10 +1,14 @@
-package ufPacket
+﻿package ufPacket
 
 import (
 	"fmt"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
+//    "ufConfig"
 )
+
+const PacketHeaderLen int = 32
 
 type Header struct {
 	Ver, Len uint16
@@ -41,3 +45,23 @@ func HeaderCompose(phdr *Header)(pkt []byte, err error){
 	return buf.Bytes(), nil
 }
 
+func md5_check(pkt []byte) bool{
+	return true
+}
+
+func decypt(pkt []byte){
+}
+
+func json_handle(pkt []byte, hdr *Header){
+
+	var req map[string] interface{}		//detailed: http://stackoverflow.com/questions/24377907/golang-issue-with-accessing-nested-json-array-after-unmarshalling
+	json.Unmarshal(pkt[PacketHeaderLen:], &req)
+
+	//	if "_didkey_set" == req["method"]{	}
+//	fmt.Println(i)
+//	fmt.Println(i["xxx"])
+//	fmt.Println(i["method"])
+
+
+
+}

@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 
 import (
@@ -7,20 +7,39 @@ import (
     "os"
     "time"
     "ufPacket"
-
+    "ufCache"
+    "ufConfig"
+    "ufOL"
 )
 
-type Header struct {
-	ver, len 	uint16
-	did			[8]uint8
-	ts				[4]uint8
-	sign			[16]uint8
-}
+
+
+
+var idkey map[uint64] string
+
 
 func main() {
+
+	var err error
+
+	//connect redis
+	ufCache.Init();
+
+	if idkey, err = ufCache.DidStringMap(ufConfig.Redis_didkey_hash); nil != err {
+		fmt.Println(err)
+	}else{
+		fmt.Println(idkey)
+	}
+
+	ufOL.Sync_from_cache()
+
+	ufOL.Update_to_cache(7542, "192.168.31.7", 635)
+
+
+
+	//setup UDP socket 
 	var conn *net.UDPConn
-    service := ":1200"
-    udpAddr, err := net.ResolveUDPAddr("udp4", service)
+    udpAddr, err := net.ResolveUDPAddr("udp4", ":1200")
     checkError(err)
     conn, err = net.ListenUDP("udp", udpAddr)
     checkError(err)
@@ -32,16 +51,31 @@ func main() {
 func handleClient(conn *net.UDPConn) {
     var buf = make([]byte, 1460)
     var phdr *ufPacket.Header
+
+	//recv packet
     n, addr, err := conn.ReadFromUDP(buf[0:])
     if err != nil {
         return
     }
     fmt.Printf("%dbytes:%s\n\n",n, string(buf[:n]))
 
-	//check parse function
+	//extract header
 	phdr, err = ufPacket.HeaderParse(buf)
     fmt.Printf("%v\n", phdr)
 
+	//if err, call sercurity
+
+	//integrity check
+	//if err, call sercurity
+
+	//decrypt
+
+	//parse json
+	//if err, call sercurity
+
+	//inject to redis
+
+	
     daytime := time.Now().String()
     conn.WriteToUDP([]byte(daytime), addr)
 
@@ -53,11 +87,12 @@ func handleClient(conn *net.UDPConn) {
     fmt.Printf("%v\n", retbuf)
     
 }
+
+
 func checkError(err error) {
     if err != nil {
         fmt.Fprintf(os.Stderr, "Fatal error ", err.Error())
         os.Exit(1)
     }
 }
-
 
