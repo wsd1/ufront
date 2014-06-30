@@ -40,7 +40,7 @@ func main() {
 
 	//setup UDP socket 
 	var conn *net.UDPConn
-	udpAddr, err := net.ResolveUDPAddr("udp4", ":54321")
+	udpAddr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", ufConfig.Server_port))
 	checkError(err)
 	conn, err = net.ListenUDP("udp", udpAddr)
 	checkError(err)
