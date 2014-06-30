@@ -2,10 +2,10 @@
 
 import(
     "fmt"
-    "time"
     "encoding/json"
     "ufCache"
     "ufConfig"
+    "ufSync"
 )
 
 
@@ -14,7 +14,7 @@ type ol_info struct{
 	Port int	`json:"port"` 
 	IP_last string	`json:"ip_last"` 
 	Port_last int	`json:"port_last"` 
-	Timestamp int64	`json:"ts"` 
+	Timestamp uint32	`json:"ts"` 
 }
 //hset ufOnline 234 '{"ip":"192.168.45.78", "port":12345, "ip_last":"354.254.125.32", "port_last":54632, "ts":123456}'
 
@@ -29,7 +29,7 @@ func SyncFromCache()(err error){
 }
 
 
-func Info(did uint64)(ip string, port int, ip_last string, port_last int, ts int64, ok bool){
+func Info(did uint64)(ip string, port int, ip_last string, port_last int, ts uint32, ok bool){
 	if i, ok := online_sock[did]; ok{
 		return i.IP, i.Port, i.IP_last, i.Port_last, i.Timestamp, ok
 	}
@@ -38,18 +38,18 @@ func Info(did uint64)(ip string, port int, ip_last string, port_last int, ts int
 }
 
 
-func Update2Cache(did uint64, ip string, port int)(elapse int64, err error){
+func Update2Cache(did uint64, ip string, port int)(elapse int, err error){
 
 	var sck = ol_info{}
 	sck.IP = ip
 	sck.Port = port
-	sck.Timestamp =  time.Now().Unix()
+	sck.Timestamp = ufSync.TS()
 
 	//update sck if exsit
 	if ip_, port_, _, _, ts_, ok := Info(did); ok{
 		sck.IP_last = ip_
 		sck.Port_last = port_
-		elapse = sck.Timestamp - ts_
+		elapse = int(sck.Timestamp) - int(ts_)
 	}else{
 		sck.IP_last = ""
 		sck.Port_last = 0

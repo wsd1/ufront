@@ -1,12 +1,12 @@
-﻿package main
+package main
 
 
 import (
 	"fmt"
 	"net"
 	"os"
-	"bytes"
 	"time"
+	"bytes"
 	"unsafe"
 	"ufPacket"
 	"ufCache"
@@ -14,6 +14,7 @@ import (
 	"ufOL"
 	"ufStat"
 	"ufConfig"
+	"ufSync"
 
 	"crypto/md5"
 	"crypto/aes"
@@ -33,6 +34,12 @@ func main() {
 
 	ufDidKey.SyncFromCache()
 	ufOL.SyncFromCache()
+
+	if err = ufSync.SntpSync(); nil != err{
+		fmt.Println(err)
+		return
+	}
+
 	ufDidKey.PrintAll()
 
 	ufOL.Update2Cache(7542, "192.168.31.7", 635)
@@ -93,6 +100,15 @@ func handleClient(conn *net.UDPConn) {
 		fmt.Printf("->parse hdr")
 	}
 
+	//time stamp error
+	var delta = phdr.TS - ufSync.TS()
+	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
+	if delta < 0{delta = -delta}
+	if delta > 60 {
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_SyncErr, fmt.Sprintf("DID: %d", phdr.DID))
+		return
+	}
+
 	//require key
 	key, ok := ufDidKey.Key(phdr.DID);
 	if !ok {
@@ -112,12 +128,12 @@ func handleClient(conn *net.UDPConn) {
 	var bkey [ufPacket.SignLen]byte
 	copy(bkey[0:], key)
 
-//	fmt.Printf("pbuf before pad: \n%s\n", hex.Dump(pkt_buf))
+	fmt.Printf("pbuf before pad: \n%s\n", hex.Dump(pkt_buf))
 	copy(pkt_buf[offset:], bkey[0:])
-//	fmt.Printf("pbuf after pad: \n%s\n", hex.Dump(pkt_buf))
+	fmt.Printf("pbuf after pad: \n%s\n", hex.Dump(pkt_buf))
 
 	new_sign := md5.Sum(pkt_buf)
-//	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
+	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
 
 
 	//if err, call sercurity
