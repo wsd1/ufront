@@ -2,6 +2,7 @@
 
 import(
     "fmt"
+    "time"
     "encoding/json"
     "ufCache"
     "ufConfig"
@@ -20,7 +21,7 @@ type ol_info struct{
 var online_sock map[uint64] ol_info
 
 
-func Sync_from_cache()(err error){
+func SyncFromCache()(err error){
 	online_sock, err = get_from_cache()
 	
 	fmt.Println(online_sock)
@@ -28,34 +29,38 @@ func Sync_from_cache()(err error){
 }
 
 
-func OL_sock(did uint64)(ip string, port int, ip_last string, port_last int, ok bool){
+func Info(did uint64)(ip string, port int, ip_last string, port_last int, ts int64, ok bool){
 	if i, ok := online_sock[did]; ok{
-		return i.IP, i.Port, i.IP_last, i.Port_last, ok
+		return i.IP, i.Port, i.IP_last, i.Port_last, i.Timestamp, ok
 	}
 
-	return "", 0, "", 0, false
+	return "", 0, "", 0, 0, false
 }
 
 
-func Update_to_cache(did uint64, ip string, port int)error{
+func Update2Cache(did uint64, ip string, port int)(elapse int64, err error){
 
 	var sck = ol_info{}
 	sck.IP = ip
 	sck.Port = port
+	sck.Timestamp =  time.Now().Unix()
 
 	//update sck if exsit
-	if ip_, port_, _, _, ok := OL_sock(did); ok{
+	if ip_, port_, _, _, ts_, ok := Info(did); ok{
 		sck.IP_last = ip_
 		sck.Port_last = port_
+		elapse = sck.Timestamp - ts_
 	}else{
 		sck.IP_last = ""
 		sck.Port_last = 0
+		elapse = 0
 	}
 
+		
 	//struct --> json
 	jsn, err := json.Marshal(&sck)
 	if nil != err{
-		return err
+		return 0, err
 	}
 
 	//struct --> map
@@ -64,7 +69,7 @@ func Update_to_cache(did uint64, ip string, port int)error{
 	//json --> cache
 	ufCache.DidHashSet(ufConfig.Redis_olinfo_hash, did, string(jsn))
 
-	return nil
+	return elapse, nil
 }
 
 

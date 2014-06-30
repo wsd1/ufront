@@ -2,20 +2,26 @@
 
 
 import (
-    "fmt"
-    "net"
-    "os"
-    "time"
-    "ufPacket"
-    "ufCache"
-    "ufConfig"
-    "ufOL"
+	"fmt"
+	"net"
+	"os"
+	"bytes"
+	"time"
+	"unsafe"
+	"ufPacket"
+	"ufCache"
+	"ufDidKey"
+	"ufOL"
+	"ufStat"
+	"ufConfig"
+
+	"crypto/md5"
+	"crypto/aes"
+	"crypto/cipher"
+
+	"encoding/json"
+	"encoding/hex"
 )
-
-
-
-
-var idkey map[uint64] string
 
 
 func main() {
@@ -25,74 +31,167 @@ func main() {
 	//connect redis
 	ufCache.Init();
 
-	if idkey, err = ufCache.DidStringMap(ufConfig.Redis_didkey_hash); nil != err {
-		fmt.Println(err)
-	}else{
-		fmt.Println(idkey)
-	}
+	ufDidKey.SyncFromCache()
+	ufOL.SyncFromCache()
+	ufDidKey.PrintAll()
 
-	ufOL.Sync_from_cache()
-
-	ufOL.Update_to_cache(7542, "192.168.31.7", 635)
-
+	ufOL.Update2Cache(7542, "192.168.31.7", 635)
 
 
 	//setup UDP socket 
 	var conn *net.UDPConn
-    udpAddr, err := net.ResolveUDPAddr("udp4", ":1200")
-    checkError(err)
-    conn, err = net.ListenUDP("udp", udpAddr)
-    checkError(err)
-    for {
-        handleClient(conn)
-    }
+	udpAddr, err := net.ResolveUDPAddr("udp4", ":54321")
+	checkError(err)
+	conn, err = net.ListenUDP("udp", udpAddr)
+	checkError(err)
+
+	go uplink_routine(conn)
+
+	for{
+		time.Sleep(10000000000)
+		fmt.Println("live...\n")
+
+//		daytime := time.Now().String()
+//		conn.WriteToUDP([]byte(daytime), addr)
+
+	}
+
+}
+func uplink_routine(conn *net.UDPConn){
+	for {
+		handleClient(conn)
+	}
 }
 
 func handleClient(conn *net.UDPConn) {
-    var buf = make([]byte, 1460)
-    var phdr *ufPacket.Header
+	var pkt_buf = make([]byte, 1460)
+	var phdr *ufPacket.Header
 
 	//recv packet
-    n, addr, err := conn.ReadFromUDP(buf[0:])
-    if err != nil {
-        return
-    }
-    fmt.Printf("%dbytes:%s\n\n",n, string(buf[:n]))
+	pkt_len, addr, err := conn.ReadFromUDP(pkt_buf[0:])
+	if err != nil {
+		return
+	}
+	fmt.Printf("[I]Incoming %dbytes\n",pkt_len) //, string(pkt_buf[:pkt_len])
+
+	//if err, call sercurity
+	if pkt_len < int(unsafe.Sizeof(*phdr)){
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_PacketHeader, "pkt too short")
+		return
+	}else{
+		fmt.Printf("->packet")
+	}
 
 	//extract header
-	phdr, err = ufPacket.HeaderParse(buf)
-    fmt.Printf("%v\n", phdr)
+	phdr, err = ufPacket.HeaderParse(pkt_buf)
 
 	//if err, call sercurity
+	if nil != err{
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_PacketHeader, fmt.Sprintf("When parse, find %s", err))
+		return
+	}else{
+		fmt.Printf("->parse hdr")
+	}
+
+	//require key
+	key, ok := ufDidKey.Key(phdr.DID);
+	if !ok {
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_KeyMissing, fmt.Sprintf("DID: %d", phdr.DID))
+		return
+	}else{
+		fmt.Printf("->retrive key")
+	}
 
 	//integrity check
+
+//	sign := make([]byte, ufPacket.SignLen)
+	var offset = int(unsafe.Offsetof(phdr.Sign))
+//	copy(sign[0:], pkt_buf[offset: offset + ufPacket.SignLen])
+
+	//Prepare key[] slice
+	var bkey [ufPacket.SignLen]byte
+	copy(bkey[0:], key)
+
+//	fmt.Printf("pbuf before pad: \n%s\n", hex.Dump(pkt_buf))
+	copy(pkt_buf[offset:], bkey[0:])
+//	fmt.Printf("pbuf after pad: \n%s\n", hex.Dump(pkt_buf))
+
+	new_sign := md5.Sum(pkt_buf)
+//	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
+
+
 	//if err, call sercurity
+	if !bytes.Equal(new_sign[:], phdr.Sign[:]){
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Integrity, fmt.Sprintf("DID: %d origin: %s,calculated: %s.", phdr.DID, hex.EncodeToString(phdr.Sign[:]), hex.EncodeToString(new_sign[:])))
+		return
+	}else{
+		fmt.Printf("->md5 ok")
+	}
+
 
 	//decrypt
+	//http://www.oschina.net/code/snippet_197499_25891
+	//https://gist.github.com/temoto/5052503
+	//http://golang-examples.tumblr.com/post/41866136734/aes-encryption-in-cbc-mode
+	//http://blog.studygolang.com/2013/01/go%E5%8A%A0%E5%AF%86%E8%A7%A3%E5%AF%86%E4%B9%8Baes/
+
+	var cip cipher.Block
+	if cip, err = aes.NewCipher(bkey[:]); err != nil{
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Decrypt, fmt.Sprintf("DID: %d", phdr.DID))
+		return
+    }else{
+		fmt.Printf("->decrypting")
+	}
+
+	cip.Decrypt(pkt_buf[unsafe.Sizeof(*phdr):], pkt_buf[unsafe.Sizeof(*phdr):])
 
 	//parse json
-	//if err, call sercurity
+	var jsn_ele map[string] interface{}
+	if err = json.Unmarshal(pkt_buf[unsafe.Sizeof(*phdr):], &jsn_ele); nil != err{
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("DID: %d", phdr.DID))
+		return
+	}else{
+		fmt.Printf("->json ok")
+	}
 
-	//inject to redis
+	switch {
+		case nil != jsn_ele["method"] && nil != jsn_ele["params"]:		//uplink request
+			fmt.Printf("Uplink request, method:%s \n", jsn_ele["method"])
 
-	
-    daytime := time.Now().String()
-    conn.WriteToUDP([]byte(daytime), addr)
+			//inject to redis
+
+		case nil != jsn_ele["result"]:	//downlink ack, ok
+			fmt.Printf("Downlink ack, ok\n")
+
+		case nil != jsn_ele["error"]:	//downlink ack, err
+			fmt.Printf("Downlink ack, err\n")
+
+		case true:
+			ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonRPC, fmt.Sprintf("DID: %d", phdr.DID))
+			return
+	}
 
 
-	var retbuf []byte
-	
+	//update cache
+	ufOL.Update2Cache(phdr.DID, addr.IP.String(), addr.Port)
+
+
+/*
+	var retbuf []byte	
 	//check compose function
 	retbuf, err = ufPacket.HeaderCompose(phdr)
-    fmt.Printf("%v\n", retbuf)
-    
+	fmt.Printf("%v\n", retbuf)
+*/
+	
+
 }
 
 
+
 func checkError(err error) {
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Fatal error ", err.Error())
-        os.Exit(1)
-    }
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Fatal error ", err.Error())
+		os.Exit(1)
+	}
 }
 
