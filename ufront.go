@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 	"bytes"
-	"unsafe"
 	"ufPacket"
 	"ufCache"
 	"ufDidKey"
@@ -82,7 +81,7 @@ func handleClient(conn *net.UDPConn) {
 	fmt.Printf("[I]Incoming %dbytes\n",pkt_len) //, string(pkt_buf[:pkt_len])
 
 	//if err, call sercurity
-	if pkt_len < int(unsafe.Sizeof(*phdr)){
+	if pkt_len < int(ufConfig.Pkt_hdr_size){
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_PacketHeader, "pkt too short")
 		return
 	}else{
@@ -121,16 +120,16 @@ func handleClient(conn *net.UDPConn) {
 	//integrity check
 
 //	sign := make([]byte, ufPacket.SignLen)
-	var offset = int(unsafe.Offsetof(phdr.Sign))
+	var offset = int(ufConfig.Pkt_hdr_sign_offset)
 //	copy(sign[0:], pkt_buf[offset: offset + ufPacket.SignLen])
 
 	//Prepare key[] slice
 	var bkey [ufPacket.SignLen]byte
 	copy(bkey[0:], key)
 
-	fmt.Printf("pbuf before pad: \n%s\n", hex.Dump(pkt_buf))
+	fmt.Printf("\npbuf before pad: \n%s\n", hex.Dump(pkt_buf))
 	copy(pkt_buf[offset:], bkey[0:])
-	fmt.Printf("pbuf after pad: \n%s\n", hex.Dump(pkt_buf))
+	fmt.Printf("\npbuf after pad: \n%s\n", hex.Dump(pkt_buf))
 
 	new_sign := md5.Sum(pkt_buf)
 	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
@@ -159,11 +158,11 @@ func handleClient(conn *net.UDPConn) {
 		fmt.Printf("->decrypting")
 	}
 
-	cip.Decrypt(pkt_buf[unsafe.Sizeof(*phdr):], pkt_buf[unsafe.Sizeof(*phdr):])
+	cip.Decrypt(pkt_buf[ufConfig.Pkt_hdr_size:], pkt_buf[ufConfig.Pkt_hdr_size:])
 
 	//parse json
 	var jsn_ele map[string] interface{}
-	if err = json.Unmarshal(pkt_buf[unsafe.Sizeof(*phdr):], &jsn_ele); nil != err{
+	if err = json.Unmarshal(pkt_buf[ufConfig.Pkt_hdr_size:], &jsn_ele); nil != err{
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("DID: %d", phdr.DID))
 		return
 	}else{
