@@ -78,14 +78,12 @@ func handleClient(conn *net.UDPConn) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("[I]Incoming %dbytes\n",pkt_len) //, string(pkt_buf[:pkt_len])
+	fmt.Printf("[I]In %dB",pkt_len) //, string(pkt_buf[:pkt_len])
 
 	//if err, call sercurity
 	if pkt_len < int(ufConfig.Pkt_hdr_size){
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_PacketHeader, "pkt too short")
 		return
-	}else{
-		fmt.Printf("->packet")
 	}
 
 	//extract header
@@ -95,13 +93,12 @@ func handleClient(conn *net.UDPConn) {
 	if nil != err{
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_PacketHeader, fmt.Sprintf("When parse, find %s", err))
 		return
-	}else{
-		fmt.Printf("->parse hdr")
 	}
 
 	//time stamp error
 	var delta = int64(phdr.TS) - int64(ufSync.TS())
-	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
+//	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
+	fmt.Printf("[DID:%d](%dbyts %ds)", phdr.DID, phdr.Len, delta)
 	if delta < 0{delta = -delta}
 	if delta > 60 {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_SyncErr, fmt.Sprintf("DID: %d", phdr.DID))
@@ -113,8 +110,6 @@ func handleClient(conn *net.UDPConn) {
 	if !ok {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_KeyMissing, fmt.Sprintf("DID: %d", phdr.DID))
 		return
-	}else{
-		fmt.Printf("->retrive key")
 	}
 
 	//integrity check
@@ -123,12 +118,12 @@ func handleClient(conn *net.UDPConn) {
 	var bkey [ufPacket.SignLen]byte
 	copy(bkey[0:], key)
 
-	fmt.Printf("\npbuf before pad: \n%s\n", hex.Dump(pkt_buf))
+//	fmt.Printf("\npbuf before pad: \n%s\n", hex.Dump(pkt_buf[:pkt_len]))
 	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], bkey[0:])
-	fmt.Printf("\npbuf after pad: \n%s\n", hex.Dump(pkt_buf))
+//	fmt.Printf("\npbuf after pad: \n%s\n", hex.Dump(pkt_buf[:pkt_len]))
 
-	new_sign := md5.Sum(pkt_buf)
-	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
+	new_sign := md5.Sum(pkt_buf[:pkt_len])
+//	fmt.Printf("MD5 result: \n%s\n", hex.EncodeToString(new_sign[:]))
 
 
 	//if err, call sercurity
@@ -136,7 +131,7 @@ func handleClient(conn *net.UDPConn) {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Integrity, fmt.Sprintf("DID: %d origin: %s,calculated: %s.", phdr.DID, hex.EncodeToString(phdr.Sign[:]), hex.EncodeToString(new_sign[:])))
 		return
 	}else{
-		fmt.Printf("->md5 ok")
+		fmt.Printf("->md5[ok]")
 	}
 
 
@@ -154,7 +149,7 @@ func handleClient(conn *net.UDPConn) {
 		fmt.Printf("->decrypting")
 	}
 
-	cip.Decrypt(pkt_buf[ufConfig.Pkt_hdr_size:], pkt_buf[ufConfig.Pkt_hdr_size:])
+	cip.Decrypt(pkt_buf[ufConfig.Pkt_hdr_size:], pkt_buf[ufConfig.Pkt_hdr_size:pkt_len])
 
 	//parse json
 	var jsn_ele map[string] interface{}
