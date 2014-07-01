@@ -98,7 +98,7 @@ func handleClient(conn *net.UDPConn) {
 	//time stamp error
 	var delta = int64(phdr.TS) - int64(ufSync.TS())
 //	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
-	fmt.Printf(" DID:%d,len:%dB,Δ:%ds)", phdr.DID, phdr.Len, delta)
+	fmt.Printf("DID:%d,len:%dB,Δ:%ds", phdr.DID, phdr.Len, delta)
 	if delta < 0{delta = -delta}
 	if delta > 60 {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_SyncErr, fmt.Sprintf("DID: %d", phdr.DID))
@@ -106,7 +106,7 @@ func handleClient(conn *net.UDPConn) {
 	}
 
 	//require key
-	key, ok := ufDidKey.Key(phdr.DID);
+	key_pub, iv, key_priv, ok := ufDidKey.KeyCtxs(phdr.DID);
 	if !ok {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_KeyMissing, fmt.Sprintf("DID: %d", phdr.DID))
 		return
@@ -114,12 +114,8 @@ func handleClient(conn *net.UDPConn) {
 
 	//integrity check
 
-	//Prepare key[] slice
-	var bkey [ufPacket.SignLen]byte
-	copy(bkey[0:], key)
-
 //	fmt.Printf("\npbuf before pad: \n%s\n", hex.Dump(pkt_buf[:pkt_len]))
-	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], bkey[0:])
+	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], key_pub)
 //	fmt.Printf("\npbuf after pad: \n%s\n", hex.Dump(pkt_buf[:pkt_len]))
 
 	new_sign := md5.Sum(pkt_buf[:pkt_len])
@@ -141,20 +137,24 @@ func handleClient(conn *net.UDPConn) {
 	//http://golang-examples.tumblr.com/post/41866136734/aes-encryption-in-cbc-mode
 	//http://blog.studygolang.com/2013/01/go%E5%8A%A0%E5%AF%86%E8%A7%A3%E5%AF%86%E4%B9%8Baes/
 
-	var cip cipher.Block
-	if cip, err = aes.NewCipher(bkey[:]); err != nil{
+	var block_cipher cipher.Block
+	if block_cipher, err = aes.NewCipher(key_priv); err != nil{
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Decrypt, fmt.Sprintf("DID: %d", phdr.DID))
 		return
     }else{
 		fmt.Printf("->decrypting")
 	}
 
-	cip.Decrypt(pkt_buf[ufConfig.Pkt_hdr_size:], pkt_buf[ufConfig.Pkt_hdr_size:pkt_len])
+	aes_cipher := cipher.NewCBCEncrypter(block_cipher, iv)
+
+	var pkt_jsn = make([]byte, pkt_len - ufConfig.Pkt_hdr_size)
+	aes_cipher.CryptBlocks(pkt_jsn, pkt_buf[ufConfig.Pkt_hdr_size:pkt_len])
 
 	//parse json
 	var jsn_ele map[string] interface{}
-	if err = json.Unmarshal(pkt_buf[ufConfig.Pkt_hdr_size:], &jsn_ele); nil != err{
+	if err = json.Unmarshal(pkt_jsn, &jsn_ele); nil != err{
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("DID: %d", phdr.DID))
+		fmt.Printf("\nDecrypt dump:\n%s\n", hex.Dump(pkt_jsn))
 		return
 	}else{
 		fmt.Printf("->json ok")

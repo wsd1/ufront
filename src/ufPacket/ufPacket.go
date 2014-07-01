@@ -10,15 +10,12 @@ import (
 	"ufConfig"
 )
 
-const (
-	SignLen int = 16
-)
 
 type Header struct {
 	Ver, Len uint16
 	DID uint64
 	TS	 uint32
-	Sign [SignLen]uint8
+	Sign [ufConfig.Pkt_sign_size]uint8
 }
 
 func HeaderParse(pkt []byte)(phdr *Header, err error){
