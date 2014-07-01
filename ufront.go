@@ -55,7 +55,7 @@ func main() {
 
 	for{
 		time.Sleep(10000000000)
-		fmt.Println("live...\n")
+//		fmt.Println("live...\n")
 
 //		daytime := time.Now().String()
 //		conn.WriteToUDP([]byte(daytime), addr)
@@ -78,7 +78,7 @@ func handleClient(conn *net.UDPConn) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("[I]In %dB",pkt_len) //, string(pkt_buf[:pkt_len])
+	fmt.Printf("[I]In(%dB)",pkt_len) //, string(pkt_buf[:pkt_len])
 
 	//if err, call sercurity
 	if pkt_len < int(ufConfig.Pkt_hdr_size){
@@ -98,7 +98,7 @@ func handleClient(conn *net.UDPConn) {
 	//time stamp error
 	var delta = int64(phdr.TS) - int64(ufSync.TS())
 //	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
-	fmt.Printf("[DID:%d](%dbyts %ds)", phdr.DID, phdr.Len, delta)
+	fmt.Printf(" DID:%d,len:%dB,Δ:%ds)", phdr.DID, phdr.Len, delta)
 	if delta < 0{delta = -delta}
 	if delta > 60 {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_SyncErr, fmt.Sprintf("DID: %d", phdr.DID))
