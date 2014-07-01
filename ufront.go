@@ -100,7 +100,7 @@ func handleClient(conn *net.UDPConn) {
 	}
 
 	//time stamp error
-	var delta = phdr.TS - ufSync.TS()
+	var delta = int64(phdr.TS) - int64(ufSync.TS())
 	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
 	if delta < 0{delta = -delta}
 	if delta > 60 {
@@ -119,16 +119,12 @@ func handleClient(conn *net.UDPConn) {
 
 	//integrity check
 
-//	sign := make([]byte, ufPacket.SignLen)
-	var offset = int(ufConfig.Pkt_hdr_sign_offset)
-//	copy(sign[0:], pkt_buf[offset: offset + ufPacket.SignLen])
-
 	//Prepare key[] slice
 	var bkey [ufPacket.SignLen]byte
 	copy(bkey[0:], key)
 
 	fmt.Printf("\npbuf before pad: \n%s\n", hex.Dump(pkt_buf))
-	copy(pkt_buf[offset:], bkey[0:])
+	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], bkey[0:])
 	fmt.Printf("\npbuf after pad: \n%s\n", hex.Dump(pkt_buf))
 
 	new_sign := md5.Sum(pkt_buf)
