@@ -16,8 +16,6 @@ import (
 	"ufSync"
 
 	"crypto/md5"
-	"crypto/aes"
-	"crypto/cipher"
 
 	"encoding/json"
 	"encoding/hex"
@@ -132,30 +130,16 @@ func handleClient(conn *net.UDPConn) {
 
 
 	//decrypt
-	//http://www.oschina.net/code/snippet_197499_25891
-	//https://gist.github.com/temoto/5052503
-	//http://golang-examples.tumblr.com/post/41866136734/aes-encryption-in-cbc-mode
-	//http://blog.studygolang.com/2013/01/go%E5%8A%A0%E5%AF%86%E8%A7%A3%E5%AF%86%E4%B9%8Baes/
-
-	//iv := {1,2,3,4,5,... }
-	//block, err := aes.NewCipher(key)
-	//aes := cipher.NewCBCEncrypter(block, iv)
-	//aes.CryptBlocks(out, in)
-
-	var block_cipher cipher.Block
-	if block_cipher, err = aes.NewCipher(key_priv); err != nil{
-		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Decrypt, fmt.Sprintf("DID: %d", phdr.DID))
+	pkt_jsn, err := ufPacket.Decypt(pkt_buf[ufConfig.Pkt_hdr_size:pkt_len], key_priv, iv)
+	if nil != err{
+		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Decrypt, fmt.Sprintf("DID:%d,%s", phdr.DID, err))
+		fmt.Printf("\nDump:\n%s\n", hex.Dump(pkt_buf[ufConfig.Pkt_hdr_size:pkt_len]))
 		return
-    }
+	}
 
-	aes_cipher := cipher.NewCBCDecrypter(block_cipher, iv)
+	fmt.Printf("->dec[ok] %dB\n", len(pkt_jsn))
 
-	var pkt_jsn = make([]byte, pkt_len - ufConfig.Pkt_hdr_size)
-	aes_cipher.CryptBlocks(pkt_jsn, pkt_buf[ufConfig.Pkt_hdr_size:pkt_len])
 
-	//remove padding
-	var padlen = int(pkt_jsn[len(pkt_jsn)-1])
-	pkt_jsn = pkt_jsn[0:len(pkt_jsn) - padlen]
 
 	//parse json
 	var jsn_ele map[string] interface{}
