@@ -74,5 +74,6 @@ func key2ctx(key string) key_ctx_t{
 	var iv = md5.Sum(append(ctx.key_priv[0:],ctx.key_pub[:]...))
 	copy(ctx.IV[0:], iv[0:])
 
+	fmt.Printf("ctx:%v\n",ctx)
 	return ctx
 }
