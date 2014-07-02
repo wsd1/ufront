@@ -78,7 +78,7 @@ func handleClient(conn *net.UDPConn) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("[I]In(%dB)",pkt_len) //, string(pkt_buf[:pkt_len])
+	//fmt.Printf("[I]In(%dB)",pkt_len) //, string(pkt_buf[:pkt_len])
 
 	//if err, call sercurity
 	if pkt_len < int(ufConfig.Pkt_hdr_size){
@@ -98,7 +98,7 @@ func handleClient(conn *net.UDPConn) {
 	//time stamp error
 	var delta = int64(phdr.TS) - int64(ufSync.TS())
 //	fmt.Printf("[TS:%d,(%d)]",phdr.TS, delta)
-	fmt.Printf("DID:%d,len:%dB,Δ:%ds", phdr.DID, phdr.Len, delta)
+	fmt.Printf("[I]DID:%d,len:%dB,Δ:%ds ", phdr.DID, phdr.Len, delta)
 	if delta < 0{delta = -delta}
 	if delta > 60 {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_SyncErr, fmt.Sprintf("DID: %d", phdr.DID))
@@ -146,18 +146,16 @@ func handleClient(conn *net.UDPConn) {
 	if block_cipher, err = aes.NewCipher(key_priv); err != nil{
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_Decrypt, fmt.Sprintf("DID: %d", phdr.DID))
 		return
-    }else{
-		fmt.Printf("->decrypting")
-	}
+    }
 
 	aes_cipher := cipher.NewCBCDecrypter(block_cipher, iv)
 
 	var pkt_jsn = make([]byte, pkt_len - ufConfig.Pkt_hdr_size)
 	aes_cipher.CryptBlocks(pkt_jsn, pkt_buf[ufConfig.Pkt_hdr_size:pkt_len])
 
+	//remove padding
 	var padlen = int(pkt_jsn[len(pkt_jsn)-1])
 	pkt_jsn = pkt_jsn[0:len(pkt_jsn) - padlen]
-
 
 	//parse json
 	var jsn_ele map[string] interface{}
@@ -165,27 +163,23 @@ func handleClient(conn *net.UDPConn) {
 		ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("DID: %d", phdr.DID))
 		fmt.Printf("\nDecrypt dump:\n%s\n", hex.Dump(pkt_jsn))
 		return
-	}else{
-		fmt.Printf("->json ok")
 	}
 
 	switch {
 		case nil != jsn_ele["method"] && nil != jsn_ele["params"]:		//uplink request
-			fmt.Printf("Uplink request, method:%s \n", jsn_ele["method"])
+			fmt.Printf("UpReq,method:%s \n", jsn_ele["method"])
 
 			//inject to redis
-
 		case nil != jsn_ele["result"]:	//downlink ack, ok
-			fmt.Printf("Downlink ack, ok\n")
+			fmt.Printf("DnAck\n")
 
 		case nil != jsn_ele["error"]:	//downlink ack, err
-			fmt.Printf("Downlink ack, err\n")
+			fmt.Printf("Dnlink ack, err\n")
 
 		case true:
 			ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonRPC, fmt.Sprintf("DID: %d", phdr.DID))
 			return
 	}
-
 
 	//update cache
 	ufOL.Update2Cache(phdr.DID, addr.IP.String(), addr.Port)
