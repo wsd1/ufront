@@ -150,7 +150,7 @@ func handleClient(conn *net.UDPConn) {
 
 	switch {
 		case nil != jsn_ele["method"] && nil != jsn_ele["params"]:		//uplink request
-			jsn_ele["ts"] = ufSync.TS()
+			jsn_ele["TS"] = phdr.TS
 			jsn_ele["DID"] = phdr.DID
 
 			fmt.Printf("UpReq,method:%s \n", jsn_ele["method"])
