@@ -41,7 +41,6 @@ func main() {
 
 	ufOL.Update2Cache(7542, "192.168.31.7", 635)
 
-
 	//setup UDP socket 
 	var conn *net.UDPConn
 	udpAddr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", ufConfig.Server_port))
@@ -151,7 +150,17 @@ func handleClient(conn *net.UDPConn) {
 
 	switch {
 		case nil != jsn_ele["method"] && nil != jsn_ele["params"]:		//uplink request
+			jsn_ele["ts"] = ufSync.TS()
+			jsn_ele["DID"] = phdr.DID
+
 			fmt.Printf("UpReq,method:%s \n", jsn_ele["method"])
+
+			jsn_bytes, err := json.Marshal(jsn_ele)
+			if err != nil {
+				ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("Marshal err:%v",jsn_ele))
+			}
+
+			fmt.Println(string(jsn_bytes))
 
 			//inject to redis
 		case nil != jsn_ele["result"]:	//downlink ack, ok

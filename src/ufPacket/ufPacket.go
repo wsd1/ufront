@@ -6,9 +6,9 @@ import (
 	"errors"
 	"encoding/binary"
 	"encoding/json"
+	"encoding/hex"
 	"crypto/aes"
 	"crypto/cipher"
-
 
 	"ufConfig"
 )
@@ -89,6 +89,51 @@ func Decypt(in[]byte, key[]byte, iv[]byte)(out []byte, err error){
 	return out[0:len(out) - padlen], nil
 }
 
+
+func Encypt(in[]byte, key[]byte, iv[]byte)(out []byte, err error){
+
+	//iv := {1,2,3,4,5,... }
+	//block, err := aes.NewCipher(key)
+	//aes := cipher.NewCBCEncrypter(block, iv)
+	//aes.CryptBlocks(out, in)
+
+	if len(key) != 16{
+		return nil, errors.New("Key must have length of 16.")
+	}
+	if len(iv) != 16{
+		return nil, errors.New("IV must have length of 16.")
+	}
+
+	var block_cipher cipher.Block
+	if block_cipher, err = aes.NewCipher(key); err != nil{
+		return nil, errors.New("NewCipher err.")
+	}
+	aes_cipher := cipher.NewCBCEncrypter(block_cipher, iv)
+
+	//padding
+	var pad_len = 16-len(in)%16
+	var pad = make([]byte, pad_len)
+	for i,_ := range pad{
+		pad[i]=byte(pad_len)
+	}
+	in_pad := append(in,pad...)
+
+	fmt.Printf("%s", hex.Dump(in_pad))
+
+	out = make([]byte, len(in_pad))
+	aes_cipher.CryptBlocks(out, in_pad)
+
+	return out, nil
+}
+
+func test_enc_dec(){
+	fmt.Println("===========================")
+	e, _ := Encypt([]byte("hellody"), []byte("0123456789abcdef"), []byte("abcdef0123456789"))
+	fmt.Println(e)
+	d, _ := Decypt(e, []byte("0123456789abcdef"), []byte("abcdef0123456789"))
+	fmt.Println(string(d))
+	fmt.Println("===========================")
+}
 
 
 func json_handle(pkt []byte, hdr *Header){
