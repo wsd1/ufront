@@ -63,7 +63,7 @@ func Update2Cache(did uint64, ip string, port int)(elapse int, err error){
 		return 0, err
 	}
 
-	//struct --> map
+	//struct --> local map
 	online_sock[did] = sck
 
 	//json --> cache

@@ -1,4 +1,4 @@
-﻿package ufCache
+package ufCache
 
 import (
 	"time"
@@ -92,3 +92,31 @@ func DidHashSet(hash string, did uint64, str string)error {
 	}
 	return nil
 }
+
+
+func listPush(list string, val string) error{
+    c := pool.Get()
+    defer c.Close()
+
+	if _, err := c.Do("LPUSH", list, val); nil != err{
+		return err	
+	}
+	return nil
+}
+
+func listPop(list string)(val string, err error){
+    c := pool.Get()
+    defer c.Close()
+    val, err = redis.String(c.Do("RPOP", list))
+	return val, err
+}
+
+func Transact_push(t string) error{
+	return listPush(ufConfig.Redis_up_list, t)
+}
+
+func Transact_pop()(val string, err error){
+	return listPop(ufConfig.Redis_up_list)
+}
+
+

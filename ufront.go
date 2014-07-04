@@ -160,7 +160,8 @@ func handleClient(conn *net.UDPConn) {
 				ufStat.Warn(addr.IP.String(), addr.Port, ufConfig.ERR_JsonParse, fmt.Sprintf("Marshal err:%v",jsn_ele))
 			}
 
-			fmt.Println(string(jsn_bytes))
+			//inject to redis
+			ufCache.Transact_push(string(jsn_bytes))
 
 			//inject to redis
 		case nil != jsn_ele["result"]:	//downlink ack, ok
