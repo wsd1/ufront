@@ -56,15 +56,15 @@ func dnlink_routine(){
 		jsn, err := ufCache.ListPop(ufConfig.Redis_dn_req_list)
 		if err == nil {
 			ufront.Dnlink_msg_handle(jsn)
+			fmt.Println("----------------------------")
 		}
-		fmt.Println("----------------------------")
 
 
 		jsn, err = ufCache.ListPop(ufConfig.Redis_up_ack_list)
 		if err == nil {
 			ufront.Dnlink_msg_handle(jsn)
+			fmt.Println("----------------------------")
 		}
-		fmt.Println("----------------------------")
 
 	}
 
@@ -82,5 +82,6 @@ func uplink_routine(){
 		}
 		//fmt.Printf("[I]In(%dB)",pkt_len) //, string(pkt_buf[:pkt_len])
 		ufront.Uplink_pkt_handle(pkt_buf, pkt_len, sip, sport)
+		fmt.Println("----------------------------")
 	}
 }
