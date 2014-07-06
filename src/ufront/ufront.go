@@ -63,6 +63,8 @@ func Init(){
 
 func Dnlink_msg_handle(jsn string){
 
+
+
 	//parse json
 	var jsn_ele map[string] interface{}
 	if err := json.Unmarshal([]byte(jsn), &jsn_ele); nil != err{
@@ -84,6 +86,28 @@ func Dnlink_msg_handle(jsn string){
 
 	//remove unnessary tag
 	delete(jsn_ele, ufConfig.JSON_TAG_EX_DID)
+
+
+
+
+
+	var method_id int64
+	//method_id may be in scientific notation, we should make sure that'll not happen
+	if nil != jsn_ele[ufConfig.JSON_TAG_id]{
+		//must have method_id tag
+		mid_raw, ok := jsn_ele[ufConfig.JSON_TAG_id].(float64)
+		if !ok {
+			ufStat.UfrontWarn(ufConfig.ERR_JsonRPC, fmt.Sprintf("UpLink ack must have %s tag", ufConfig.JSON_TAG_id))
+			fmt.Printf("\nParse dump:\n%s\n", hex.Dump([]byte(jsn)))
+			return
+		}
+		method_id = int64(mid_raw)
+		delete(jsn_ele, ufConfig.JSON_TAG_id)
+
+		jsn_ele[ufConfig.JSON_TAG_id] = method_id	//give it int64 type
+	}
+
+
 
 
 
@@ -111,7 +135,7 @@ func Dnlink_msg_handle(jsn string){
 	}
 
 
-
+	fmt.Println(hex.Dump(jsn_buf))
 
 	//two type:
 	//1. Down link req
@@ -121,17 +145,8 @@ func Dnlink_msg_handle(jsn string){
 		case nil != jsn_ele[ufConfig.JSON_TAG_method] && nil != jsn_ele[ufConfig.JSON_TAG_params]:
 			fmt.Println("Dnlink req")
 
-		case nil != jsn_ele[ufConfig.JSON_TAG_result] || nil != jsn_ele[ufConfig.JSON_TAG_error]:
+		case nil != jsn_ele[ufConfig.JSON_TAG_id]:
 			fmt.Println("Uplink ack")
-
-			//must have method_id tag
-			mid_raw, ok := jsn_ele[ufConfig.JSON_TAG_id].(float64)
-			if !ok {
-				ufStat.UfrontWarn(ufConfig.ERR_JsonRPC, fmt.Sprintf("UpLink ack must have %s tag", ufConfig.JSON_TAG_id))
-				fmt.Printf("\nParse dump:\n%s\n", hex.Dump([]byte(jsn)))
-				return
-			}
-			method_id := int64(mid_raw)
 
 			//cache it
 			if err := ufCache.TimeWaitInsert(ufConfig.Time_wait_ack_prefix, did, method_id, jsn_enc); nil != err{

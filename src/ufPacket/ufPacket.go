@@ -6,7 +6,7 @@ import (
 	"errors"
 	"encoding/binary"
 //	"encoding/json"
-	"encoding/hex"
+//	"encoding/hex"
 	"crypto/aes"
 	"crypto/md5"
 	"crypto/cipher"
@@ -137,7 +137,7 @@ func Encypt(in[]byte, key[]byte, iv[]byte)(out []byte, err error){
 	}
 	in_pad := append(in,pad...)
 
-	fmt.Printf("%s", hex.Dump(in_pad))
+	//fmt.Printf("%s", hex.Dump(in_pad))
 
 	out = make([]byte, len(in_pad))
 	aes_cipher.CryptBlocks(out, in_pad)
