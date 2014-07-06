@@ -191,18 +191,22 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 			//if it is method
 			if nil != jsn_ele[ufConfig.JSON_TAG_id]{
 
-				
 				method_id := int64(jsn_ele[ufConfig.JSON_TAG_id].(float64))
 
+				fmt.Printf("Method ID:%d\n", method_id)
+
 				if is_resend := is_resend_req(did, method_id); !is_resend{
+					fmt.Printf("New call, up cached\n")
 
 					//push to consumer
 					ufCache.ListPush(ufConfig.Redis_up_req_list, string(jsn_bytes))
 
 				}else{
+					fmt.Printf("Re-sent call, ")
 
 					//if cached not expire, re-send
 					if enc_payload, err := ufCache.TimeWait(ufConfig.Time_wait_ack_prefix, did, method_id); nil != err {
+						fmt.Printf("ack cached, re-send\n")
 
 						pkt_buf, err := Pkt_make(did, enc_payload)
 						if nil != err{
@@ -217,6 +221,7 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 						}
 
 					}else{
+						fmt.Printf("no ack cached, skip\n")
 						return //skip
 					}
 
@@ -225,6 +230,8 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 
 			// If is notify
 			}else{
+
+				fmt.Printf("Notification, up cached\n")
 
 				//json serialization
 				jsn_bytes, err := json.Marshal(jsn_ele)
@@ -241,7 +248,7 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 		//Downlink ack
 		case nil != jsn_ele[ufConfig.JSON_TAG_result] || nil != jsn_ele[ufConfig.JSON_TAG_error]:
 
-			fmt.Printf("DnAck")
+			fmt.Printf("Dnlink Ack\n")
 
 			//inject to redis, push to consumer
 			ufCache.ListPush(ufConfig.Redis_dn_ack_list, string(jsn_bytes))
@@ -255,13 +262,9 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 	//update cache
 	ufOL.Update2Cache(did, ip, port)
 
-/*
-	var retbuf []byte	
-	//check compose function
-	retbuf, err = ufPacket.HeaderCompose(phdr)
-	fmt.Printf("%v\n", retbuf)
-*/
 }
+
+
 
 func Pkt_read(pkt_buf []byte)(pkt_len int, sip string, sport int, err error){
 	pkt_len, addr, err := conn.ReadFromUDP(pkt_buf)
