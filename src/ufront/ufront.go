@@ -205,7 +205,7 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 					fmt.Printf("Re-sent call, ")
 
 					//if cached not expire, re-send
-					if enc_payload, err := ufCache.TimeWait(ufConfig.Time_wait_ack_prefix, did, method_id); nil != err {
+					if enc_payload, err := ufCache.TimeWait(ufConfig.Time_wait_ack_prefix, did, method_id); nil == err {
 						fmt.Printf("ack cached, re-send\n")
 
 						pkt_buf, err := Pkt_make(did, enc_payload)
@@ -260,7 +260,7 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 	}
 
 	//update cache
-	ufOL.Update2Cache(did, ip, port)
+	ufOL.CacheUpdate(did, ip, port)
 
 }
 
@@ -282,7 +282,7 @@ func Pkt_send(did uint64, pkt_buf []byte) error{
 		return nil
 	}
 
-	return errors.New("UDP send err.")
+	return errors.New("Offline.")
 }
 
 func pkt_parse(pkt_buf []byte, IP string, port int)(jsn map[string] interface{}, err error){
@@ -368,7 +368,7 @@ func pkt_parse(pkt_buf []byte, IP string, port int)(jsn map[string] interface{},
 	if err = json.Unmarshal(pkt_jsn, &jsn_ele); nil != err{
 		err_info = fmt.Sprintf("DID: %d", phdr.DID)
 		ufStat.DeviceWarn(IP, port, ufConfig.ERR_JsonParse, err_info)
-		fmt.Printf("\nDecrypt dump:\n%s\n", hex.Dump(pkt_jsn))
+		fmt.Printf("\nDump:\n%s\n", hex.Dump(pkt_jsn))
 		return nil, errors.New(err_info)
 	}
 

@@ -30,11 +30,28 @@ func SyncFromCache()(err error){
 //Get info from local
 func Info(did uint64)(inf OL_info, ok bool){
 	i, ok := online_sock[did]
+	if ok{
+
+		var d int
+		d = int(ufSync.TS()) - int(i.Timestamp)
+		if d < 0 {
+			d = -d
+		}
+		//If timeout, OFFLINE!
+		if d >= ufConfig.Time_offline_sec{
+			delete(online_sock, did)
+			CacheDelete(did)
+			return i, false
+		}
+	}
 	return i, ok
 }
 
+func CacheDelete(did uint64)(err error){
+	return ufCache.DidHashDel(ufConfig.Redis_olinfo_hash, did)
+}
 
-func Update2Cache(did uint64, ip string, port int)(elapse int, err error){
+func CacheUpdate(did uint64, ip string, port int)(elapse int, err error){
 	var sck = OL_info{}
 	sck.IP = ip
 	sck.Port = port

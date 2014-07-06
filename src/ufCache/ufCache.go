@@ -95,6 +95,17 @@ func DidHashSet(hash string, did uint64, str string)error {
 }
 
 
+func DidHashDel(hash string, did uint64)error {
+
+    c := pool.Get()
+    defer c.Close()
+
+	if _, err := c.Do("HDEL", hash, did); nil != err{
+		return err	
+	}
+	return nil
+}
+
 
 //Set time wait buf
 func TimeWaitInsert(prefix string, did uint64, method_id int64, enc_jsn []byte) error{
