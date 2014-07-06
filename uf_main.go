@@ -57,12 +57,14 @@ func dnlink_routine(){
 		if err == nil {
 			ufront.Dnlink_msg_handle(jsn)
 		}
+		fmt.Println("----------------------------")
+
 
 		jsn, err = ufCache.ListPop(ufConfig.Redis_up_ack_list)
 		if err == nil {
 			ufront.Dnlink_msg_handle(jsn)
 		}
-
+		fmt.Println("----------------------------")
 
 	}
 

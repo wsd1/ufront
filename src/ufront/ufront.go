@@ -57,6 +57,8 @@ func Init(){
 	checkError(err)
 	conn, err = net.ListenUDP("udp", udpAddr)
 	checkError(err)
+
+	last_mid = make(map[uint64] int64)
 }
 
 func Dnlink_msg_handle(jsn string){
@@ -285,7 +287,8 @@ func pkt_parse(pkt_buf []byte, IP string, port int)(jsn map[string] interface{},
 	var phdr *ufPacket.Header
 	var pkt_len = len(pkt_buf)
 	var err_info string
-	//if err, call sercurity
+
+
 	if pkt_len < int(ufConfig.Pkt_hdr_size){
 		err_info = "pkt too short"
 		ufStat.DeviceWarn(IP, port, ufConfig.ERR_PacketHeader, err_info)
@@ -338,6 +341,12 @@ func pkt_parse(pkt_buf []byte, IP string, port int)(jsn map[string] interface{},
 		return nil, errors.New(err_info)
 	}else{
 		fmt.Printf("->md5[ok]")
+	}
+
+
+	if pkt_len == int(ufConfig.Pkt_hdr_size){
+		fmt.Printf("Just header:\n%s", hex.Dump(pkt_buf))
+		return nil, errors.New("Just header.")
 	}
 
 	//decrypt
