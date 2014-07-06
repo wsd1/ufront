@@ -135,7 +135,7 @@ func Dnlink_msg_handle(jsn string){
 	}
 
 
-	fmt.Println(hex.Dump(jsn_buf))
+	//fmt.Println(hex.Dump(jsn_buf))
 
 	//two type:
 	//1. Down link req
@@ -146,7 +146,7 @@ func Dnlink_msg_handle(jsn string){
 			fmt.Println("Dnlink req")
 
 		case nil != jsn_ele[ufConfig.JSON_TAG_id]:
-			fmt.Println("Uplink ack")
+			fmt.Printf("Uplink ack to %d\nMethod id:%d\nAck cached.\n", did, method_id)
 
 			//cache it
 			if err := ufCache.TimeWaitInsert(ufConfig.Time_wait_ack_prefix, did, method_id, jsn_enc); nil != err{
