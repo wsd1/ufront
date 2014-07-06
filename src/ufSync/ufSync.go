@@ -47,9 +47,9 @@ func SntpSync()error{
 
 	delta = int64(sec) - time.Now().Unix()
 
-	fmt.Printf("Network time: %v\n", sec)
-	fmt.Printf("System time: %v\n", time.Now().Unix())
-	fmt.Printf("Time delta: %v\n", delta)
+//	fmt.Printf("Network time: %v\n", sec)
+//	fmt.Printf("System time: %v\n", time.Now().Unix())
+	fmt.Printf("Time synced (delta: %d)\n", delta)
 
 	return nil
 }

@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"errors"
 	"encoding/binary"
-	"encoding/json"
+//	"encoding/json"
 	"encoding/hex"
 	"crypto/aes"
+	"crypto/md5"
 	"crypto/cipher"
-
 	"ufConfig"
 )
 
@@ -18,7 +18,7 @@ type Header struct {
 	Ver, Len uint16
 	DID uint64
 	TS	 uint32
-	Sign [ufConfig.Pkt_sign_size]uint8
+	Sign [ufConfig.Pkt_sign_size]byte
 }
 
 func HeaderParse(pkt []byte)(phdr *Header, err error){
@@ -39,9 +39,16 @@ func HeaderParse(pkt []byte)(phdr *Header, err error){
 	return &ufh, nil
 }
 
-func HeaderCompose(phdr *Header)(pkt []byte, err error){
+//make header without md5 sign
+func HeaderCompose(l uint16, did uint64, ts uint32)(hdr_buf []byte, err error){
+	var hdr Header
+	hdr.Ver = ufConfig.Pkt_prot_ver1
+	hdr.Len = l
+	hdr.DID = did
+	hdr.TS = ts
+
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.BigEndian, *phdr)
+	err = binary.Write(buf, binary.BigEndian, hdr)
 	if err != nil {
 		fmt.Println("binary.Write failed:", err)
 		return nil, err
@@ -49,8 +56,20 @@ func HeaderCompose(phdr *Header)(pkt []byte, err error){
 	return buf.Bytes(), nil
 }
 
-func md5_check(pkt []byte) bool{
-	return true
+
+//Compose pkt, sign it
+func PacketCompose(hdr []byte, jsn_enc []byte, key_pub []byte)(pkt_buf []byte, err error){
+
+	//concate
+	pkt_buf = append(hdr, jsn_enc...)
+
+	//sign
+	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], key_pub)
+
+	var new_sign = md5.Sum(pkt_buf)
+	copy(pkt_buf[ufConfig.Pkt_hdr_sign_offset:], new_sign[:	])
+
+	return pkt_buf, nil
 }
 
 func Decypt(in[]byte, key[]byte, iv[]byte)(out []byte, err error){
@@ -136,17 +155,4 @@ func test_enc_dec(){
 }
 
 
-func json_handle(pkt []byte, hdr *Header){
-	
-//	var h Header
-	var req map[string] interface{}		//detailed: http://stackoverflow.com/questions/24377907/golang-issue-with-accessing-nested-json-array-after-unmarshalling
-	json.Unmarshal(pkt[ufConfig.Pkt_hdr_size:], &req)
 
-	//	if "_didkey_set" == req["method"]{	}
-//	fmt.Println(i)
-//	fmt.Println(i["xxx"])
-//	fmt.Println(i["method"])
-
-
-
-}

@@ -3,6 +3,7 @@ package ufCache
 import (
 	"time"
 	"fmt"
+	"strings"
 	"ufConfig"
 	"github.com/garyburd/redigo/redis"
 )
@@ -94,7 +95,43 @@ func DidHashSet(hash string, did uint64, str string)error {
 }
 
 
-func listPush(list string, val string) error{
+
+//Set time wait buf
+func TimeWaitInsert(prefix string, did uint64, method_id int64, enc_jsn []byte) error{
+    c := pool.Get()
+    defer c.Close()
+
+    var triple = make([]string,3)
+    triple[0] = prefix
+    triple[1] = fmt.Sprintf("%d", did)
+    triple[2] = fmt.Sprintf("%d", method_id)
+    h := strings.Join(triple, ":")
+    //fmt.Println(h)
+
+	if _, err := c.Do("SETEX", h, ufConfig.Time_wait_sec+1, enc_jsn); nil != err{
+		return err	
+	}
+	return nil
+}
+
+
+func TimeWait(prefix string, did uint64, method_id int64)(enc_jsn []byte, err error){
+    c := pool.Get()
+    defer c.Close()
+
+    var triple = make([]string,3)
+    triple[0] = prefix
+    triple[1] = fmt.Sprintf("%d", did)
+    triple[2] = fmt.Sprintf("%d", method_id)
+    h := strings.Join(triple, ":")
+	//fmt.Println(h)
+
+    val, err := redis.Bytes(c.Do("GET", h))
+	return val, err
+}
+
+
+func ListPush(list string, val string) error{
     c := pool.Get()
     defer c.Close()
 
@@ -104,19 +141,12 @@ func listPush(list string, val string) error{
 	return nil
 }
 
-func listPop(list string)(val string, err error){
+func ListPop(list string)(val string, err error){
     c := pool.Get()
     defer c.Close()
     val, err = redis.String(c.Do("RPOP", list))
 	return val, err
 }
 
-func Transact_push(t string) error{
-	return listPush(ufConfig.Redis_up_list, t)
-}
-
-func Transact_pop()(val string, err error){
-	return listPop(ufConfig.Redis_up_list)
-}
 
 
