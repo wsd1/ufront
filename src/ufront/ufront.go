@@ -143,10 +143,10 @@ func Dnlink_msg_handle(jsn string){
 
 	switch{
 		case nil != jsn_ele[ufConfig.JSON_TAG_method] && nil != jsn_ele[ufConfig.JSON_TAG_params]:
-			fmt.Println("Dnlink req")
+			fmt.Println("[Cache=>req=>%d]", did)
 
 		case nil != jsn_ele[ufConfig.JSON_TAG_id]:
-			fmt.Printf("Uplink ack to %d\nMethod id:%d\nAck cached.\n", did, method_id)
+			fmt.Printf("[Cache=>ack=>%d]\nWith method_id:%d\n buffered & will be sent.\n", did, method_id)
 
 			//cache it
 			if err := ufCache.TimeWaitInsert(ufConfig.Time_wait_ack_prefix, did, method_id, jsn_enc); nil != err{
@@ -158,8 +158,6 @@ func Dnlink_msg_handle(jsn string){
 			fmt.Printf("\nParse dump:\n%s\n", hex.Dump([]byte(jsn)))
 			return
 	}
-
-
 
 
 	pkt_buf, err := Pkt_make(did, jsn_enc)
@@ -211,7 +209,7 @@ func Uplink_pkt_handle(pkt_buf []byte, pkt_len int, ip string, port int){
 				fmt.Printf("Method ID:%d\n", method_id)
 
 				if is_resend := is_resend_req(did, method_id); !is_resend{
-					fmt.Printf("New call, up cached\n")
+					fmt.Printf("New call [=>Cache]\n")
 
 					//push to consumer
 					ufCache.ListPush(ufConfig.Redis_up_req_list, string(jsn_bytes))
